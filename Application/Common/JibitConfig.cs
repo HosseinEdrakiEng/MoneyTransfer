@@ -12,5 +12,7 @@
         public string PayIdInquiryUrl { get; set; }
         public string PayIdVerifyUrl { get; set; }
         public string PayIdFailUrl { get; set; }
+        public string TransferUrl { get; set; }
+        public string InquiryTransferUrl { get; set; }
     }
 }

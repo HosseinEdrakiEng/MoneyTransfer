@@ -1,14 +1,13 @@
 ﻿using Application.Abstraction;
+using Application.Abstraction.IRepository;
 using Application.Abstraction.IService;
 using Application.Common;
 using Infrastructure.Persistence;
+using Infrastructure.Repository;
 using Infrastructure.Service;
-using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.DependencyInjection;
-using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Infrastructure
 {
@@ -18,6 +17,7 @@ namespace Infrastructure
         {
             services.Configure<JibitConfig>(configuration.GetSection("JibitConfig"));
             services.Configure<SsoConfig>(configuration.GetSection("SsoConfig"));
+            services.Configure<HangfireConfig>(configuration.GetSection("HangfireConfig"));
             return services;
         }
 
@@ -33,61 +33,16 @@ namespace Infrastructure
 
         public static IServiceCollection AddRepository(this IServiceCollection services)
         {
+            services.AddScoped<ITransferDetailRepository, TransferDetailRepository>();
+            services.AddScoped<ITransferRepository, TransferRepository>();
             return services;
         }
 
         public static IServiceCollection AddService(this IServiceCollection services)
         {
             services.AddScoped<IJibitService, JibitService>();
-            return services;
-        }
-
-        public static IServiceCollection AddProviderHttpClient(this IServiceCollection services, IConfiguration configuration)
-        {
-            var jibitConfig = configuration.GetSection("JibitConfig").Get<JibitConfig>();
-            services.AddHttpClient("Notification", o =>
-            {
-                o.BaseAddress = new Uri(jibitConfig.BaseUrl);
-                o.Timeout = jibitConfig.Timeout;
-            }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
-            {
-                ClientCertificateOptions = ClientCertificateOption.Manual,
-                ServerCertificateCustomValidationCallback = (httpRequestMessage, cert, cetChain, policyErrors) =>
-                {
-                    return true;
-                }
-            }).SetHandlerLifetime(TimeSpan.FromMinutes(10));
-
-            return services;
-        }
-
-        public static IServiceCollection AddSsoConfig(this IServiceCollection services, IConfiguration configuration)
-        {
-            var ssoConfig = configuration.GetSection("SsoConfig").Get<SsoConfig>();
-
-            var publicKeyBytes = Convert.FromBase64String(ssoConfig.PublicKey);
-            var rsa = RSA.Create();
-            rsa.ImportSubjectPublicKeyInfo(publicKeyBytes, out int _);
-            var rsaSecurityKey = new RsaSecurityKey(rsa);
-
-            services.AddAuthorization();
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, o =>
-                {
-                    o.MetadataAddress = ssoConfig.MetadataAddress;
-                    o.Authority = ssoConfig.Authority;
-                    o.RequireHttpsMetadata = false;
-                    o.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateAudience = false,
-                        ValidIssuer = ssoConfig.ValidIssuer,
-                        ValidateIssuerSigningKey = true,
-                        ValidateIssuer = true,
-                        IssuerSigningKey = rsaSecurityKey,
-                        ValidateLifetime = true,
-                    };
-                });
-
+            services.AddScoped<IHangfireService, HangfireService>();
+            services.AddScoped<ITransferService, TransferService>();
             return services;
         }
     }

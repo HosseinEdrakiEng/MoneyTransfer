@@ -4,6 +4,7 @@ using Application.Models.Jibit;
 using Helper;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text;
 using System.Text.Json;
 
 namespace Infrastructure.Service
@@ -202,6 +203,183 @@ namespace Infrastructure.Service
             }
 
             result.Data = JsonSerializer.Deserialize<FailJibitPayIdResponseModel>(apiResponse.Response);
+            return result;
+        }
+
+        public async Task<BaseResponse<JibitTransferResponseModel>> Transfer(JibitTransferRequestModel request, CancellationToken cancellationToken)
+        {
+            var result = new BaseResponse<JibitTransferResponseModel>();
+
+            var token = await this.GenerateToken(cancellationToken);
+            if (token.HasError)
+            {
+                result.Error = token.Error;
+                return result;
+            }
+
+            var headers = new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" },
+                { "Authorization", $"Bearer {token}"}
+            };
+
+            var apiResponse = await _httpClientFactory.ApiCall("Jibit", request, HttpMethod.Post, _jibitConfig.TransferUrl, headers, cancellationToken);
+            _logger.LogInformation($"Transfer jibit log : '{apiResponse.SerializeAsJson()}'");
+
+            if (!apiResponse.IsSuccessStatusCode
+                || string.IsNullOrWhiteSpace(apiResponse.Response))
+            {
+                result.Error = CustomError.JibitTransferFail;
+                return result;
+            }
+
+            result.Data = JsonSerializer.Deserialize<JibitTransferResponseModel>(apiResponse.Response);
+            return result;
+        }
+
+        public async Task<BaseResponse<JibitInquiryTransferResponseModel>> InquiryTransfer(string? batchId, string? transferId, CancellationToken cancellationToken)
+        {
+            var result = new BaseResponse<JibitInquiryTransferResponseModel>();
+
+            var token = await this.GenerateToken(cancellationToken);
+            if (token.HasError)
+            {
+                result.Error = token.Error;
+                return result;
+            }
+
+            var headers = new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" },
+                { "Authorization", $"Bearer {token}"}
+            };
+
+            var url = new StringBuilder();
+            url.Append(_jibitConfig.InquiryTransferUrl);
+
+            if (!string.IsNullOrWhiteSpace(batchId))
+            {
+                url.Append($"?batchID={batchId}");
+            }
+            else if (!string.IsNullOrWhiteSpace(transferId))
+            {
+                url.Append($"?transferID={transferId}");
+            }
+            else
+            {
+                result.Error = CustomError.InvalidJibitTransferParameters;
+                return result;
+            }
+
+            var apiResponse = await _httpClientFactory.ApiCall("Jibit", new object(), HttpMethod.Get, url.ToString(), headers, cancellationToken);
+            _logger.LogInformation($"InquiryTransfer jibit log : '{apiResponse.SerializeAsJson()}'");
+
+            if (!apiResponse.IsSuccessStatusCode
+                || string.IsNullOrWhiteSpace(apiResponse.Response))
+            {
+                result.Error = CustomError.JibitInquiryTransferFail;
+                return result;
+            }
+
+            result.Data = JsonSerializer.Deserialize<JibitInquiryTransferResponseModel>(apiResponse.Response);
+            return result;
+        }
+
+        public async Task<BaseResponse<JibitDeleteTransferResponseModel>> DeleteTransfer(string? batchId, string? transferId, CancellationToken cancellationToken)
+        {
+            var result = new BaseResponse<JibitDeleteTransferResponseModel>();
+
+            var token = await this.GenerateToken(cancellationToken);
+            if (token.HasError)
+            {
+                result.Error = token.Error;
+                return result;
+            }
+
+            var headers = new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" },
+                { "Authorization", $"Bearer {token}"}
+            };
+
+            var url = new StringBuilder();
+            url.Append(_jibitConfig.InquiryTransferUrl);
+
+            if (!string.IsNullOrWhiteSpace(batchId))
+            {
+                url.Append($"?batchID={batchId}");
+            }
+            else if (!string.IsNullOrWhiteSpace(transferId))
+            {
+                url.Append($"?transferID={transferId}");
+            }
+            else
+            {
+                result.Error = CustomError.InvalidJibitTransferParameters;
+                return result;
+            }
+
+            var apiResponse = await _httpClientFactory.ApiCall("Jibit", new object(), HttpMethod.Delete, url.ToString(), headers, cancellationToken);
+            _logger.LogInformation($"DeleteTransfer jibit log : '{apiResponse.SerializeAsJson()}'");
+
+            if (!apiResponse.IsSuccessStatusCode
+                || string.IsNullOrWhiteSpace(apiResponse.Response))
+            {
+                result.Error = CustomError.JibitDeleteTransferFail;
+                return result;
+            }
+
+            result.Data = JsonSerializer.Deserialize<JibitDeleteTransferResponseModel>(apiResponse.Response);
+            return result;
+        }
+
+        public async Task<BaseResponse<JibitRetryTransferResponseModel>> RetryTransfer(string? batchId, string? transferId, CancellationToken cancellationToken)
+        {
+            var result = new BaseResponse<JibitRetryTransferResponseModel>();
+
+            var token = await this.GenerateToken(cancellationToken);
+            if (token.HasError)
+            {
+                result.Error = token.Error;
+                return result;
+            }
+
+            var headers = new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" },
+                { "Authorization", $"Bearer {token}"}
+            };
+
+            var url = new StringBuilder();
+            url.Append(_jibitConfig.InquiryTransferUrl);
+
+            if (!string.IsNullOrWhiteSpace(batchId))
+            {
+                url.Append($"?batchID={batchId}");
+            }
+            else if (!string.IsNullOrWhiteSpace(transferId))
+            {
+                url.Append($"?transferID={transferId}");
+            }
+            else
+            {
+                result.Error = CustomError.InvalidJibitTransferParameters;
+                return result;
+            }
+
+            var model = new { state = "RETRY" };
+
+            var apiResponse = await _httpClientFactory.ApiCall("Jibit", model, HttpMethod.Patch, url.ToString(), headers, cancellationToken);
+            _logger.LogInformation($"RetryTransfer jibit log : '{apiResponse.SerializeAsJson()}'");
+
+            if (!apiResponse.IsSuccessStatusCode
+                || string.IsNullOrWhiteSpace(apiResponse.Response))
+            {
+                result.Error = CustomError.JibitRetryTransferFail;
+                return result;
+            }
+
+            result.Data = JsonSerializer.Deserialize<JibitRetryTransferResponseModel>(apiResponse.Response);
             return result;
         }
     }
